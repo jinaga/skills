@@ -128,10 +128,10 @@ projections.AsTable()
 
 ```csharp
 // Define fact types
-[FactType("Nawiis.Customer")]
+[FactType("MyApplication.Customer")]
 record Customer(Inspector inspector, DateTime createdAt);
 
-[FactType("Nawiis.Customer.Name")]
+[FactType("MyApplication.Customer.Name")]
 record CustomerName(Customer customer, string value, CustomerName[] prior);
 
 // Visualize structure
@@ -268,8 +268,8 @@ Should output version information if installed correctly.
 ## Integration with Main Codebase
 
 After designing in notebooks:
-1. Copy fact type definitions to `Nawiis.Core/`
+1. Copy fact type definitions to `MyApplication.Core/`
 2. Copy specifications to appropriate locations
-3. Copy view models to `Nawiis.Desktop/` or view model directory
+3. Copy view models to `MyApplication.Desktop/` or view model directory
 4. Add unit tests based on notebook explorations
 5. Keep notebook as documentation and reference

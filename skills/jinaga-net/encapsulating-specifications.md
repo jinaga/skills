@@ -12,7 +12,7 @@ Use this guide when the user wants to make queries reusable or attach them to en
 
 ### Defining a Relation on a Fact Type
 ```csharp
-[FactType("Nawiis.Customer")]
+[FactType("MyApplication.Customer")]
 public record Customer(Inspector inspector, DateTime createdAt)
 {
     public Relation<CustomerName> Names => Relation.Define(_ =>
@@ -30,7 +30,7 @@ var names = await j.Query(namesSpec, customer);
 
 ### Multiple Relations on One Type
 ```csharp
-[FactType("Nawiis.Customer")]
+[FactType("MyApplication.Customer")]
 public record Customer(Inspector inspector, DateTime createdAt)
 {
     public Relation<CustomerName> Names => Relation.Define(_ =>

@@ -1,11 +1,11 @@
 ---
 name: jinaga
-description: Comprehensive guide for working with Jinaga in the NAWIIS application. Use when creating facts, querying data, building projections, handling concurrent edits, creating reactive view models, or working with the Jinaga fact-based data model.
+description: Comprehensive guide for working with Jinaga in a .NET application. Use when creating facts, querying data, building projections, handling concurrent edits, creating reactive view models, or working with the Jinaga fact-based data model.
 ---
 
 # Working with Jinaga
 
-Use this skill when working with Jinaga, the immutable fact-based data modeling framework used in NAWIIS. This guide covers all aspects of working with Jinaga facts, queries, projections, and reactive view models.
+Use this skill when working with Jinaga, the immutable fact-based data modeling framework used in a .NET application. This guide covers all aspects of working with Jinaga facts, queries, projections, and reactive view models.
 
 ## Quick Navigation
 
@@ -73,10 +73,10 @@ Use `j.Watch()` instead of `j.Query()` when you need UI data that automatically 
 
 ### Fact Type Definition
 ```csharp
-[FactType("Nawiis.Customer")]
+[FactType("MyApplication.Customer")]
 record Customer(Inspector inspector, DateTime createdAt);
 
-[FactType("Nawiis.Customer.Name")]
+[FactType("MyApplication.Customer.Name")]
 record CustomerName(Customer customer, string value, CustomerName[] prior);
 ```
 

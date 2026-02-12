@@ -4,7 +4,7 @@ Use this guide when the user asks to create a new entity, add a property, or mod
 
 ## Essential Steps
 
-1. **Define the fact as a C# record** with `[FactType("Nawiis.Entity")]` attribute
+1. **Define the fact as a C# record** with `[FactType("MyApplication.Entity")]` attribute
 2. **Include parent entity references** as required constructor parameters
 3. **For mutable properties**, create separate fact types with `prior` array
 4. **Use `DateTime createdAt`** for entities to distinguish between different instances of the same entity.
@@ -13,13 +13,13 @@ Use this guide when the user asks to create a new entity, add a property, or mod
 
 ### Root Entity
 ```csharp
-[FactType("Nawiis.Customer")]
+[FactType("MyApplication.Customer")]
 record Customer(Inspector inspector, DateTime createdAt);
 ```
 
 ### Mutable Property
 ```csharp
-[FactType("Nawiis.Customer.Name")]
+[FactType("MyApplication.Customer.Name")]
 record CustomerName(Customer customer, string value, CustomerName[] prior);
 ```
 
@@ -32,7 +32,7 @@ CustomerName name = await j.Fact(new CustomerName(customer, "ABC Company", []));
 ## Key Patterns
 
 - **Immutable by Design**: All facts are immutable C# records. Never use mutable properties.
-- **Hierarchical Namespacing**: Use dot notation like `Nawiis.Customer.Name` to reflect entity hierarchy.
+- **Hierarchical Namespacing**: Use dot notation like `MyApplication.Customer.Name` to reflect entity hierarchy.
 - **Historical Tracking**: The `prior` array preserves complete history of all previous values.
 - **Parent References**: Child entities maintain clear ownership through parent references.
 
