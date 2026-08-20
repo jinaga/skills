@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TaskTracker</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pinned to the latest version verified to build clean as of this
+         commit. Bump deliberately, not by floating — see ../README.md. -->
+    <PackageReference Include="Jinaga" Version="1.1.39" />
+  </ItemGroup>
+
+</Project>

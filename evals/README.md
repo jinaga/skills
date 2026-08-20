@@ -11,13 +11,14 @@ the judges (how a result is scored).
 ## Status
 
 The harness shape below is settled; the pieces that need a real Jinaga.NET
-fixture project to run against are not yet wired up. See the TODOs in
+fixture project to run against are not yet fully wired up. The fixture now
+exists — [`fixtures/dotnet-starter/`](fixtures/dotnet-starter/) is a real,
+verified-building two-project .NET solution the `task-rename` scenario seeds
+from. What's still open is the hand-off from the provider run to the
+build/test judge (where the modified project ends up on disk), plus
+confirming the exact non-interactive `claude` CLI flags. See the TODOs in
 [`providers/claude-code-dotnet.sh`](providers/claude-code-dotnet.sh) and
-[`judges/dotnet-build-and-test.js`](judges/dotnet-build-and-test.js). The
-first real work item for the `.NET` track is a minimal fixture project
-(`evals/fixtures/dotnet-starter/`) that scenarios can seed from, plus getting
-one scenario green end to end — everything else should follow the same
-pattern once that one works.
+[`judges/dotnet-build-and-test.js`](judges/dotnet-build-and-test.js).
 
 ## Scenario schema
 
