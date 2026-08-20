@@ -16,24 +16,45 @@ view model's job is to keep a UI-bindable collection in sync with it via
 ## Populate a collection from a watch
 
 `j.Watch()` calls back once per matching fact with an add, and expects a
-function back that runs on remove:
+function back that runs on remove. Subscribe in the constructor — `Watch`
+itself isn't async, so there's no reason to defer it to a separate `Load`
+step:
 
 ```csharp
-private readonly ObservableList<TaskProjection> _tasks = new();
-public IEnumerable<TaskProjection> Tasks => _tasks;
-
-private IObserver? _observer;
-
-public async Task Load(JinagaClient j, Project project)
+public class TaskListViewModel : IDisposable
 {
-    _observer = j.Watch(TasksInProjectQuery(), project, projection =>
+    private readonly ObservableList<TaskProjection> _tasks = new();
+    public IEnumerable<TaskProjection> Tasks => _tasks;
+
+    private readonly IObserver _observer;
+
+    public TaskListViewModel(JinagaClient j, Project project)
     {
-        _tasks.Add(projection);
-        return () => _tasks.Remove(projection);
-    });
-    await _observer.Loaded();
+        _observer = j.Watch(TasksInProjectQuery(), project, projection =>
+        {
+            _tasks.Add(projection);
+            return () => _tasks.Remove(projection);
+        });
+    }
+
+    public async Task Loaded()
+    {
+        await _observer.Loaded;
+    }
+
+    public void Dispose()
+    {
+        _observer.Stop();
+    }
 }
 ```
+
+`IObserver.Loaded` is a `Task` **property**, not a method — `await
+_observer.Loaded();` is a mistake that won't compile, not just a style
+choice; the parens matter. Expose the view model's own `Loaded()` as an
+`async Task` method wrapping it, per `testing-jinaga-dotnet` — a test
+awaits *that*, not the observer directly, so a view model with more than
+one observer can compose them (`Task.WhenAll(...)`) behind one call.
 
 Expose derived values as computed properties rather than maintaining them by
 hand — a reactive framework (e.g. Assisticant's `ComputedList`) recomputes
@@ -47,19 +68,10 @@ UI-bound state — including an `ObservableList` a XAML binding is watching —
 needs to run on the UI thread; dispatch explicitly rather than assuming the
 callback already runs there.
 
-## Dispose
-
-```csharp
-public void Dispose()
-{
-    _observer?.Stop();
-}
-```
-
-Always implement `IDisposable` and stop the observer. A view model that
-never stops its watch keeps its subscription (and everything it holds a
-reference to) alive for the life of the `JinagaClient`, not the life of the
-screen.
+Always implement `IDisposable` and stop the observer in it. A view model
+that never stops its watch keeps its subscription (and everything it holds
+a reference to) alive for the life of the `JinagaClient`, not the life of
+the screen.
 
 ## Design-first: model, visualize, then implement
 
