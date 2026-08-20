@@ -1,7 +1,7 @@
 # Evals
 
 Every skill in this repo is graded by scenarios that put a coding agent, with
-that skill installed, in front of a real Jinaga.NET (later: Jinaga JS) task
+that skill installed, in front of a real Jinaga.NET or Jinaga TypeScript task
 and check what it produces. The suite runs on [promptfoo](https://www.promptfoo.dev),
 chosen over a bespoke runner because scenario authoring, LLM-rubric grading,
 and result comparison across runs are already solved problems there — we
@@ -121,26 +121,32 @@ never appear anywhere the model under test can see it.
 Scenarios run against a coding agent with every skill in this repo installed
 via `openskills` (`npx openskills install <path-to-this-repo> -y` — a plain
 local path, no GitHub remote needed) into a copy of a fixture project under
-`evals/.runs/<run-id>/` — see `providers/claude-code-dotnet.sh`, a promptfoo
+`evals/.runs/<run-id>/` — see `providers/claude-code.sh`, a promptfoo
 [custom script provider](https://www.promptfoo.dev/docs/providers/custom-script/)
 that shells out to the Claude Code CLI non-interactively. That copy is left
 in place after the script exits, not deleted — a judge runs as a separate
 step afterward and needs somewhere on disk to point `dotnet build`/`dotnet test`
-at. `evals/.runs/` is gitignored and cleared at the start of every
-`npm run eval`, so a stale run never leaks into the next one; inspect one
-after a run for debugging, before the next `npm run eval` clears it.
+or `tsc`/`vitest` at. `evals/.runs/` is gitignored and cleared at the start
+of every `npm run eval`, so a stale run never leaks into the next one;
+inspect one after a run for debugging, before the next `npm run eval`
+clears it.
 
-Point a scenario at a different fixture directory with a `fixture` var if
-the default (`evals/fixtures/dotnet-starter`) doesn't apply.
+One provider is shared across every track — which fixture it runs against
+is entirely driven by each scenario's own `fixture` var (there's no
+default; a scenario missing it fails fast with a clear reason rather than
+silently running against the wrong track's fixture). For a fixture with a
+`package.json`, the provider runs `npm install` in the copy before handing
+it to the agent, since a TypeScript fixture needs that before `tsc`/`vitest`
+can run against it — a .NET fixture has no equivalent step.
 
 The provider prints a `{ output, metadata: { resultProjectDir } }` JSON
 envelope to stdout. Because this is an `exec:` provider, promptfoo does not
 parse that — the whole string becomes the `output` every assertion
 receives as its first argument, unparsed. Judges recover
 `resultProjectDir` by parsing `output` as JSON themselves — see
-`judges/_provider-envelope.js`, shared by both `.NET`-track judges. Reuse
-that helper for any future judge that also needs to look at the result on
-disk; don't reach for `context.metadata`, which is always empty for this
+`judges/_provider-envelope.js`, shared by every track's judges. Reuse that
+helper for any future judge that also needs to look at the result on disk;
+don't reach for `context.metadata`, which is always empty for this
 provider type.
 
 ## Running the suite

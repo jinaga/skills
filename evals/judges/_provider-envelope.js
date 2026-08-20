@@ -1,6 +1,6 @@
-// Shared parsing helper for both .NET-track judges.
+// Shared parsing helper for every language track's judges.
 //
-// promptfoo's `exec:` custom script provider (../providers/claude-code-dotnet.sh
+// promptfoo's `exec:` custom script provider (../providers/claude-code.sh
 // is one) NEVER parses a script's stdout as structured JSON — it always
 // wraps the raw stdout verbatim as `{ output: rawStdout }`
 // (github.com/promptfoo/promptfoo, src/providers/scriptCompletion.ts).
@@ -12,7 +12,7 @@
 // `context.metadata` was still empty.
 //
 // The fix: the provider still prints a `{ output, metadata }` JSON
-// envelope to stdout (see claude-code-dotnet.sh) — but `output`, the raw
+// envelope to stdout (see claude-code.sh) — but `output`, the raw
 // string every assertion receives as its first argument, *is* that JSON
 // text. So judges parse it themselves instead of reading context.metadata.
 

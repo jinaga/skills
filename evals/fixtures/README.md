@@ -36,7 +36,42 @@ unqualified scope and reintroduce the ambiguity. Any new fixture code (or
 code an eval scenario asks an agent to add) should follow the same
 convention.
 
-`providers/claude-code-dotnet.sh` copies this fixture and hands both judges
-a real path to it on disk — see `evals/README.md`'s Provider section for how
+## `typescript-starter`
+
+Referenced by `evals/scenarios/authoring-jinaga-facts-typescript/task-rename.yaml`.
+A minimal TypeScript project mirroring `dotnet-starter`'s scope exactly, so
+the two tracks' scenarios are comparable:
+
+- `src/model.ts` — depends on `jinaga` via npm, and declares the `Project`
+  and `Task` fact classes from `skills/authoring-jinaga-facts-typescript/SKILL.md`
+  (with a `ModelBuilder` registration), plus one `tasksInProject`
+  specification. `Task` deliberately has no title yet.
+- `src/model.test.ts` — one passing vitest test (`saves and queries a task
+  in a project`) against `JinagaTest`, so a scenario that fails to add
+  tests of its own still leaves the suite green.
+
+Verified to type-check and test clean with `npx tsc --noEmit` / `npx vitest
+run` from this directory, against pinned versions in `package.json`
+(`jinaga` 6.11.3, `typescript` 5.9.3, `vitest` 4.1.11 — all pinned to what
+actually resolved, same discipline as `dotnet-starter`). Bump deliberately,
+re-verify with both commands after any bump.
+
+Two API details worth knowing if you're editing this fixture (both
+confirmed against the actual installed package's type declarations and a
+real test run, not assumed from older example code): identity comparison
+is `Jinaga.hash(fact)`, a **static** method imported from `jinaga` — not an
+instance method on the client (`j.hash(...)` doesn't exist) — and it only
+works on a real, materialized fact returned from a query, never on the
+`LabelOf<T>` proxy a specification's `match`/`select` callback receives
+while the specification is being built.
+
+## Shared provider
+
+`providers/claude-code.sh` is shared across every track — copies whichever
+fixture a scenario's `fixture` var names, running `npm install` first if
+the copy has a `package.json` (a TypeScript fixture needs that before
+`tsc`/`vitest` can run against it; a .NET one doesn't, since `dotnet
+build`/`dotnet test` restore packages implicitly) — and hands every judge a
+real path to it on disk. See `evals/README.md`'s Provider section for how
 that hand-off works, and its Status section for what's verified versus
-still open (a real run against a live model).
+still open per track.

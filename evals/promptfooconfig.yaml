@@ -1,7 +1,7 @@
-# Eval suite for the .NET track. See ../docs/skill-architecture.md and
-# ./README.md before editing. Run with:
+# Eval suite for every language track. See ../docs/skill-architecture.md
+# and ./README.md before editing. Run with:
 #   npx promptfoo eval -c promptfooconfig.yaml
-description: Jinaga skills — .NET track
+description: Jinaga skills
 
 # promptfoo caches provider responses by keying on (provider, rendered
 # prompt) — fine for a deterministic API call, wrong here: this provider's
@@ -18,8 +18,10 @@ evaluateOptions:
   cache: false
 
 providers:
-  - id: exec:./providers/claude-code-dotnet.sh
-    label: claude-code-with-dotnet-skills
+  # One provider, shared across every track — which fixture it runs
+  # against is driven entirely by each scenario's own `fixture` var.
+  - id: exec:./providers/claude-code.sh
+    label: claude-code-with-jinaga-skills
 
 # Each file under scenarios/ is one promptfoo test case (see README.md for
 # the schema). The glob below picks up every skill's scenarios in one run;
@@ -29,9 +31,9 @@ tests:
 
 defaultTest:
   options:
-    # Scenarios assert on real dotnet build/test output, which is slow
-    # relative to a plain LLM call — don't let promptfoo's default
-    # per-assertion timeout cut a build off early.
+    # Scenarios assert on real build/test output (dotnet build/test,
+    # tsc/vitest), which is slow relative to a plain LLM call — don't let
+    # promptfoo's default per-assertion timeout cut a build off early.
     timeout: 120000
     # llm-rubric grades with OpenAI by default; this repo only assumes an
     # Anthropic key is available (consistent with the provider above, which

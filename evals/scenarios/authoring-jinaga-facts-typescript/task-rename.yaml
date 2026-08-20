@@ -1,0 +1,37 @@
+description: >
+  TypeScript counterpart of evals/scenarios/authoring-jinaga-facts-dotnet/task-rename.yaml
+  — same prompt, same underlying pattern (prior-chain mutable property),
+  different language track, so the two scenarios' results are directly
+  comparable. Checks that a rename feature is modeled as its own fact class
+  with a `prior` array rather than a mutated field, that the "current
+  title" specification filters out superseded values with `.notExists(...)`,
+  and that a concurrent rename is handled rather than assumed away.
+  Exercises authoring-jinaga-facts-typescript,
+  authoring-jinaga-specifications-typescript, and testing-jinaga-typescript
+  together, since a rename feature isn't done until all three are right.
+vars:
+  fixture: typescript-starter
+  prompt: >
+    In this project, add the ability to rename a Task. A Task already has a
+    Project predecessor and a createdAt field, but no title yet. Add
+    whatever fact class(es) and specification are needed so the current
+    title of a task can be queried, wire it up, and write tests that prove:
+    renaming a task still lets you read its (new) title, and renaming a
+    task twice in a row leaves exactly one current title.
+assert:
+  # Resolved relative to promptfooconfig.yaml's directory (evals/), not
+  # this scenario file's own directory.
+  - type: javascript
+    value: file://judges/typescript-idioms.js
+  - type: javascript
+    value: file://judges/typescript-build-and-test.js
+  - type: llm-rubric
+    value: >
+      Passes only if all of the following are true: (1) the title is
+      modeled as its own fact class with a `prior: T[]` constructor
+      parameter, not as a mutable field on Task; (2) the first title fact
+      for a task is created with an empty `prior` array; (3) the
+      specification for "current title" filters out any title that another
+      title's `prior` lists (a `.notExists(...)`-shaped filter); (4) a test
+      renames a task twice and asserts exactly one current title remains
+      after both renames.

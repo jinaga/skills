@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# promptfoo custom script (exec:) provider for the .NET track.
+# promptfoo custom script (exec:) provider, shared across every language
+# track — which fixture a scenario runs against is entirely driven by its
+# `fixture` var (see below), not by anything in this script.
 # https://www.promptfoo.dev/docs/providers/custom-script/
 #
 # Contract (verified against promptfoo's own source,
@@ -36,8 +38,18 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 FIXTURE_NAME="$(node -e '
   const ctx = JSON.parse(process.argv[1] || "{}");
-  process.stdout.write(ctx.vars && ctx.vars.fixture ? ctx.vars.fixture : "dotnet-starter");
+  process.stdout.write(ctx.vars && ctx.vars.fixture ? ctx.vars.fixture : "");
 ' "$CONTEXT_JSON")"
+
+if [ -z "$FIXTURE_NAME" ]; then
+  node -e '
+    process.stdout.write(JSON.stringify({
+      output: "",
+      error: "Scenario is missing a fixture var — this shared provider has no default fixture across tracks.",
+    }));
+  '
+  exit 0
+fi
 
 FIXTURE_SRC="$REPO_ROOT/evals/fixtures/$FIXTURE_NAME"
 if [ ! -d "$FIXTURE_SRC" ]; then
@@ -59,16 +71,50 @@ RUN_ID="$(node -e 'process.stdout.write(require("crypto").randomUUID())')"
 WORKDIR="$RUNS_DIR/$RUN_ID"
 mkdir -p "$WORKDIR"
 # rsync, not cp -R: a local checkout's fixture directory can have stale
-# bin/obj from a prior manual `dotnet build` (gitignored, so a fresh clone
-# never has them, but a working copy might) — exclude them explicitly
-# rather than copying — and possibly running — stale build output.
-rsync -a --exclude=bin --exclude=obj "$FIXTURE_SRC/" "$WORKDIR/"
+# build output from prior manual runs — bin/obj (.NET), node_modules/dist
+# (TypeScript) — gitignored, so a fresh clone never has them, but a working
+# copy might. Exclude them explicitly rather than copying — and possibly
+# running — stale output (or, for node_modules, wasting real time copying
+# something about to get reinstalled anyway).
+rsync -a --exclude=bin --exclude=obj --exclude=node_modules --exclude=dist "$FIXTURE_SRC/" "$WORKDIR/"
+
+# A TypeScript fixture needs its own fresh install before Claude (or a
+# judge) can run tsc/vitest against it — a .NET fixture has no equivalent
+# step, since `dotnet build`/`dotnet test` restore packages implicitly.
+if [ -f "$WORKDIR/package.json" ]; then
+  NPM_INSTALL_LOG="$WORKDIR/.npm-install.log"
+  if ! (cd "$WORKDIR" && npm install >"$NPM_INSTALL_LOG" 2>&1); then
+    node -e '
+      const [workdir, log] = process.argv.slice(1);
+      process.stdout.write(JSON.stringify({
+        output: "",
+        error: "npm install failed in the fixture copy — see " + log,
+        metadata: { resultProjectDir: workdir },
+      }));
+    ' "$WORKDIR" "$NPM_INSTALL_LOG"
+    exit 0
+  fi
+fi
 
 # Install this repo's skills into the copy the same way a real consumer
-# would — from a checkout on disk, not a hand-wired context injection —
-# so the eval measures the actual install path.
+# would — from a checkout on disk, not a hand-wired context injection — so
+# the eval measures the actual install path. But NOT from $REPO_ROOT
+# directly: openskills discovers skills by scanning every SKILL.md under
+# the path it's given, and a dev machine's working tree can have gitignored
+# directories (evals/node_modules, once promptfoo is installed) that
+# happen to contain packages shipping their own SKILL.md files unrelated
+# to this repo — caught when a run installed 17 "skills" instead of the 12
+# actually in skills/, five of them (dotenv, dotenvx, playwright-*) coming
+# from evals/node_modules. `git archive` a clean snapshot of exactly the
+# committed tree instead, so the eval always tests what's actually
+# published — which also means uncommitted skill edits need a commit (even
+# a WIP one) before a scenario will see them.
+SNAPSHOT_DIR="$WORKDIR/.repo-snapshot"
+mkdir -p "$SNAPSHOT_DIR"
+git -C "$REPO_ROOT" archive HEAD | tar -x -C "$SNAPSHOT_DIR"
+
 INSTALL_LOG="$WORKDIR/.openskills-install.log"
-if ! (cd "$WORKDIR" && npx --yes openskills install "$REPO_ROOT" -y >"$INSTALL_LOG" 2>&1); then
+if ! (cd "$WORKDIR" && npx --yes openskills install "$SNAPSHOT_DIR" -y >"$INSTALL_LOG" 2>&1); then
   node -e '
     const [workdir, log] = process.argv.slice(1);
     process.stdout.write(JSON.stringify({
