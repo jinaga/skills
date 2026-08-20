@@ -10,16 +10,19 @@ the judges (how a result is scored).
 
 ## Status
 
-**The `task-rename` scenario passes end to end against a live model** —
-provider copies the fixture, installs this repo's skills into the copy via
-`openskills`, runs Claude Code non-interactively, and both judges read the
-result back off disk. All three assertions pass independently on a fresh
-(cache genuinely bypassed) run: the idiom judge finds no violations across
-the 5 `.cs` files produced, `dotnet build`/`dotnet test` both succeed for
-real, and the `llm-rubric` scores 0.9 — Claude added `TaskTitle` as its own
-fact type with a `prior` array, a `CurrentTitle` specification using
-`WhereCurrent`, and two tests covering rename-then-read and
-rename-twice-leaves-one-current.
+**Both tracks' `task-rename` scenario passes end to end against a live
+model, in the same suite run.** Provider copies the fixture, installs this
+repo's skills into the copy via `openskills`, runs Claude Code
+non-interactively, and every judge reads the result back off disk.
+
+### .NET track
+
+All three assertions pass independently on a fresh (cache genuinely
+bypassed) run: the idiom judge finds no violations across the 5 `.cs`
+files produced, `dotnet build`/`dotnet test` both succeed for real, and the
+`llm-rubric` scores 0.9 — Claude added `TaskTitle` as its own fact type
+with a `prior` array, a `CurrentTitle` specification using `WhereCurrent`,
+and two tests covering rename-then-read and rename-twice-leaves-one-current.
 
 Getting there took four live runs. The first three each found a real bug
 that a dry run (a stub CLI standing in for `claude`, exercising the
@@ -60,6 +63,38 @@ the real `WhereNotDeletedOrRestored` delete/restore helper the skill hadn't
 been documenting at all (it hand-rolled a nested existential using a
 `WhereNotExists` method that doesn't exist in the real API). Both are now
 fixed in the skill with verified-correct code.
+
+### TypeScript track
+
+Passed on its **first** live run, no bugs found that time — a direct
+result of applying the same "verify against the real package, not
+memory/older example code" discipline to the skills themselves *before*
+ever running an eval, rather than discovering the gaps through a live run
+the way the .NET track did. Every idiom in the five TypeScript skills was
+checked against the actual installed `jinaga`/`jinaga-react` `.d.ts` files
+and a compiling, passing scratch test before being written down — which is
+exactly what caught, ahead of time instead of after a failed run, that
+`Jinaga.hash()` is a static method (not `j.hash(...)`), that projecting a
+predecessor directly throws at specification-build time, and that the
+built-in `User` fact needs its own authorization rule.
+
+All three assertions pass: the idiom judge finds no violations, `tsc
+--noEmit`/`vitest run` both succeed, and the `llm-rubric` scores 0.9 — the
+generated `TaskTitle` fact class, `ModelBuilder` registration, and
+`current()` specification match the skill's documented example almost
+verbatim.
+
+The harness itself did need one genuine fix, caught by a dry run before
+any live model call: `openskills install` discovers skills by scanning
+every `SKILL.md` under whatever path it's given, and pointing it at this
+repo's live working directory picked up 5 spurious "skills" (`dotenv`,
+`dotenvx`, `playwright-*`) shipped inside `evals/node_modules` — gitignored,
+so a fresh clone never has them, but a dev machine that had already
+installed promptfoo did. Fixed by installing from a `git archive HEAD`
+snapshot instead of the working tree — see `providers/claude-code.sh`'s
+comment at that step. One consequence worth knowing: a scenario only ever
+sees a skill's **committed** state, so testing an in-progress skill edit
+needs at least a WIP commit first.
 
 ## Scenario schema
 
