@@ -17,3 +17,4 @@ obj/
 ### Eval scratch ###
 evals/**/tmp/
 evals/**/*.actual.json
+evals/.runs/

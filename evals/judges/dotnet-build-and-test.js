@@ -6,10 +6,11 @@
 // promptfoo custom JS assertion contract:
 // https://www.promptfoo.dev/docs/configuration/expected-outputs/javascript/
 //
-// STATUS: TODO — this depends on the provider (../providers/claude-code-dotnet.sh)
-// recording where the resulting project lives on disk so this judge can
-// `dotnet build`/`dotnet test` it. That hand-off isn't wired up yet; see
-// evals/README.md. The shape below is what it should do once it is.
+// The hand-off this depends on: ../providers/claude-code-dotnet.sh returns
+// a ProviderResponse shaped `{ output, metadata: { resultProjectDir } }`.
+// promptfoo exposes that `metadata` object here as `context.metadata` (its
+// documented shortcut for `context.providerResponse.metadata`) — that's
+// where resultProjectDir comes from, not a test-authored var.
 
 const { execFileSync } = require("child_process");
 
@@ -23,27 +24,39 @@ function run(cmd, args, cwd) {
 }
 
 module.exports = (output, context) => {
-  const projectDir = context?.vars?.resultProjectDir;
+  const providerError = context?.providerResponse?.error;
+  const projectDir = context?.metadata?.resultProjectDir;
 
   if (!projectDir) {
     return {
       pass: false,
       score: 0,
-      reason:
-        "No resultProjectDir in context — the provider needs to report where " +
-        "the modified project lives before this judge can run `dotnet build`/`dotnet test`. See TODO at top of this file.",
+      reason: providerError
+        ? `Provider did not produce a project to test: ${providerError}`
+        : "No metadata.resultProjectDir on the provider response — see the hand-off note at the top of this file.",
     };
   }
 
+  if (providerError) {
+    // The provider recorded a workdir but flagged a problem (e.g. a
+    // non-zero claude exit code) — still worth trying the build, since a
+    // partial run can produce a working project, but surface the warning.
+    return runBuildAndTest(projectDir, `Note: provider reported "${providerError}".\n`);
+  }
+
+  return runBuildAndTest(projectDir, "");
+};
+
+function runBuildAndTest(projectDir, prefix) {
   const build = run("dotnet", ["build", "--nologo"], projectDir);
   if (!build.ok) {
-    return { pass: false, score: 0, reason: `dotnet build failed:\n${build.output}` };
+    return { pass: false, score: 0, reason: `${prefix}dotnet build failed:\n${build.output}` };
   }
 
   const test = run("dotnet", ["test", "--nologo"], projectDir);
   if (!test.ok) {
-    return { pass: false, score: 0.5, reason: `Build succeeded but dotnet test failed:\n${test.output}` };
+    return { pass: false, score: 0.5, reason: `${prefix}Build succeeded but dotnet test failed:\n${test.output}` };
   }
 
-  return { pass: true, score: 1, reason: "dotnet build and dotnet test both succeeded." };
-};
+  return { pass: true, score: 1, reason: `${prefix}dotnet build and dotnet test both succeeded.` };
+}

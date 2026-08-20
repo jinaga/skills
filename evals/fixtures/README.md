@@ -36,7 +36,7 @@ unqualified scope and reintroduce the ambiguity. Any new fixture code (or
 code an eval scenario asks an agent to add) should follow the same
 convention.
 
-`providers/claude-code-dotnet.sh` now has a real fixture to copy from. Its
-remaining TODO — and `judges/dotnet-build-and-test.js`'s — is the hand-off
-of *where the modified project ended up* from the provider run to the judge;
-see the comments in each.
+`providers/claude-code-dotnet.sh` copies this fixture and hands both judges
+a real path to it on disk — see `evals/README.md`'s Provider section for how
+that hand-off works, and its Status section for what's verified versus
+still open (a real run against a live model).

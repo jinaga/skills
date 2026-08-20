@@ -3,8 +3,9 @@
   "private": true,
   "description": "Eval harness for jinaga/skills, run with promptfoo",
   "scripts": {
-    "eval": "promptfoo eval -c promptfooconfig.yaml",
-    "view": "promptfoo view"
+    "eval": "npm run clean && promptfoo eval -c promptfooconfig.yaml",
+    "view": "promptfoo view",
+    "clean": "rm -rf .runs"
   },
   "devDependencies": {
     "promptfoo": "latest"

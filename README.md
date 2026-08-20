@@ -17,11 +17,15 @@ npx openskills install jinaga/skills
 ```
 
 That installs every skill in [`skills/`](skills/) into `./.claude/skills` (or
-`./.agent/skills` with `--universal`) in your own project. To install a single
-skill instead of the whole set, point at its subpath:
+`./.agent/skills` with `--universal`) in your own project. Add `-y` to skip
+the interactive picker and install all seven in one step; without it,
+openskills prompts you to choose specific skills instead of the whole set.
+
+To install a single skill without the interactive picker, point at its
+directory on disk after cloning this repo locally:
 
 ```bash
-npx openskills install jinaga/skills/skills/authoring-jinaga-facts-dotnet
+npx openskills install path/to/jinaga-skills/skills/authoring-jinaga-facts-dotnet
 ```
 
 ## What's here

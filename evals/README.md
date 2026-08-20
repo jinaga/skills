@@ -10,15 +10,25 @@ the judges (how a result is scored).
 
 ## Status
 
-The harness shape below is settled; the pieces that need a real Jinaga.NET
-fixture project to run against are not yet fully wired up. The fixture now
-exists — [`fixtures/dotnet-starter/`](fixtures/dotnet-starter/) is a real,
-verified-building two-project .NET solution the `task-rename` scenario seeds
-from. What's still open is the hand-off from the provider run to the
-build/test judge (where the modified project ends up on disk), plus
-confirming the exact non-interactive `claude` CLI flags. See the TODOs in
-[`providers/claude-code-dotnet.sh`](providers/claude-code-dotnet.sh) and
-[`judges/dotnet-build-and-test.js`](judges/dotnet-build-and-test.js).
+The full pipeline — provider copies the fixture, installs this repo's
+skills into the copy via `openskills`, runs the coding agent, and hands both
+judges a real path on disk to inspect — is wired and dry-run verified (a
+stub CLI standing in for `claude`, so the plumbing is exercised without
+spending real API calls): JSON escaping through the shell, the
+`resultProjectDir` hand-off via promptfoo's `metadata` channel, both judges
+reading real files and running real `dotnet build`/`dotnet test`. That dry
+run caught and fixed two real bugs along the way — worth knowing about if
+you're editing `claude-code-dotnet.sh` again: a `${3:-{}}` bash default that
+silently corrupted JSON (bash's `:-` isn't brace-matching-aware), and a
+`prior` idiom-check regex that had the C# positional-record parameter order
+backwards. Both are called out in comments at the fix site.
+
+**Not yet done: an actual run against a live model.** Nothing above proves
+the exact `claude -p ... --dangerously-skip-permissions` invocation
+produces a usable transcript from a real coding session, only that it's the
+documented flag set. Run one scenario for real
+(`cd evals && npm install && npm run eval`) and read the result in
+`evals/.runs/<run-id>/` before trusting this in CI.
 
 ## Scenario schema
 
@@ -74,20 +84,33 @@ never appear anywhere the model under test can see it.
 
 ## Provider
 
-Scenarios run against a coding agent with the skill under test installed via
-`openskills` into a disposable copy of a fixture project — see
-`providers/claude-code-dotnet.sh`, a promptfoo
+Scenarios run against a coding agent with every skill in this repo installed
+via `openskills` (`npx openskills install <path-to-this-repo> -y` — a plain
+local path, no GitHub remote needed) into a copy of a fixture project under
+`evals/.runs/<run-id>/` — see `providers/claude-code-dotnet.sh`, a promptfoo
 [custom script provider](https://www.promptfoo.dev/docs/providers/custom-script/)
-that shells out to the Claude Code CLI non-interactively. Point a scenario's
-provider at a fixture directory with a `fixture` var if the default
-(`evals/fixtures/dotnet-starter`) doesn't apply.
+that shells out to the Claude Code CLI non-interactively. That copy is left
+in place after the script exits, not deleted — a judge runs as a separate
+step afterward and needs somewhere on disk to point `dotnet build`/`dotnet test`
+at. `evals/.runs/` is gitignored and cleared at the start of every
+`npm run eval`, so a stale run never leaks into the next one; inspect one
+after a run for debugging, before the next `npm run eval` clears it.
+
+Point a scenario at a different fixture directory with a `fixture` var if
+the default (`evals/fixtures/dotnet-starter`) doesn't apply.
+
+The provider reports where the modified project ended up via the
+`metadata` field of its response — promptfoo surfaces that to every
+assertion as `context.metadata`. Both `.NET`-track judges read
+`context.metadata.resultProjectDir` from there; that's the mechanism to
+reuse if a future judge also needs to look at the result on disk.
 
 ## Running the suite
 
 ```bash
 cd evals
 npm install
-npx promptfoo eval -c promptfooconfig.yaml
+npm run eval
 ```
 
 To check whether a skill is actually earning its place, run the same

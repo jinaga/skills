@@ -25,7 +25,12 @@ change usually means a skill is missing a rule it needs.
 
 1. Skills live at `skills/<skill-name>/SKILL.md`, one directory per skill,
    matching the [Agent Skills spec](https://github.com/anthropics/skills/tree/main/spec)
-   openskills installs against. Start from [`template/SKILL.md`](template/SKILL.md).
+   openskills installs against. Start from
+   [`template/SKILL.md.template`](template/SKILL.md.template), and name the
+   copy `SKILL.md` — the `.template` suffix here is deliberate: openskills
+   discovers installable skills by finding files literally named `SKILL.md`
+   anywhere in the repo, and this file living under `template/` would
+   otherwise ship to every consumer as a bogus eighth skill.
 2. Frontmatter needs `name` and `description`. The description is what a
    coding agent uses to decide *whether* to load the skill — write it as a
    trigger condition ("use when authoring or editing a Jinaga.NET fact
