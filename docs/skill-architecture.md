@@ -66,6 +66,22 @@ Not planned yet: a top-level router skill. Add one only once real usage shows
 which routing questions actually need answering — guessing at that now would
 just be another rule nobody asked for.
 
+### Adjacent: `assisticant-view-models`
+
+One deliberate exception to "every skill here is Jinaga-specific":
+`assisticant-view-models` covers [Assisticant](https://github.com/michaellperry/Assisticant),
+a general-purpose reactive data-binding library with nothing Jinaga-specific
+in it — `Observable<T>`, `ObservableList<T>`, computed properties without
+`INotifyPropertyChanged`, `ViewModelLocatorBase`, WPF validation. It's here
+because `integrating-jinaga-reactive-viewmodels-dotnet` assumes it as the
+binding layer underneath a Jinaga.NET reactive view model, and a developer
+following that skill needs Assisticant's own patterns to finish the job.
+Content is carried over as-is; it doesn't get the same "verified against
+the real package" treatment the Jinaga-specific skills do, since it isn't
+graded by this repo's eval harness and isn't the thing this repo is about —
+treat it as a convenience for readers already committed to Assisticant, not
+as an endorsement to reach for over some other binding layer.
+
 ## Principles
 
 **Say the same rule at most two ways, and make them agree.** A rule belongs
