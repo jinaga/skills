@@ -6,13 +6,15 @@
 // promptfoo custom JS assertion contract:
 // https://www.promptfoo.dev/docs/configuration/expected-outputs/javascript/
 //
-// The hand-off this depends on: ../providers/claude-code-dotnet.sh returns
-// a ProviderResponse shaped `{ output, metadata: { resultProjectDir } }`.
-// promptfoo exposes that `metadata` object here as `context.metadata` (its
-// documented shortcut for `context.providerResponse.metadata`) — that's
-// where resultProjectDir comes from, not a test-authored var.
+// The hand-off this depends on: ../providers/claude-code-dotnet.sh prints a
+// `{ output, metadata: { resultProjectDir } }` JSON envelope to stdout, and
+// `output` — the first argument every assertion receives — *is* that raw
+// JSON text (see _provider-envelope.js for why: promptfoo's exec provider
+// type doesn't have a separate metadata channel, unlike a custom JS/Python
+// provider).
 
 const { execFileSync } = require("child_process");
+const { parseProviderEnvelope } = require("./_provider-envelope.js");
 
 function run(cmd, args, cwd) {
   try {
@@ -23,28 +25,25 @@ function run(cmd, args, cwd) {
   }
 }
 
-module.exports = (output, context) => {
-  const providerError = context?.providerResponse?.error;
-  const projectDir = context?.metadata?.resultProjectDir;
+module.exports = (output) => {
+  const { resultProjectDir, providerError, parseError } = parseProviderEnvelope(output);
 
-  if (!projectDir) {
+  if (parseError) {
+    return { pass: false, score: 0, reason: parseError };
+  }
+
+  if (!resultProjectDir) {
     return {
       pass: false,
       score: 0,
       reason: providerError
         ? `Provider did not produce a project to test: ${providerError}`
-        : "No metadata.resultProjectDir on the provider response — see the hand-off note at the top of this file.",
+        : "No metadata.resultProjectDir in the provider's output envelope.",
     };
   }
 
-  if (providerError) {
-    // The provider recorded a workdir but flagged a problem (e.g. a
-    // non-zero claude exit code) — still worth trying the build, since a
-    // partial run can produce a working project, but surface the warning.
-    return runBuildAndTest(projectDir, `Note: provider reported "${providerError}".\n`);
-  }
-
-  return runBuildAndTest(projectDir, "");
+  const prefix = providerError ? `Note: provider reported "${providerError}".\n` : "";
+  return runBuildAndTest(resultProjectDir, prefix);
 };
 
 function runBuildAndTest(projectDir, prefix) {

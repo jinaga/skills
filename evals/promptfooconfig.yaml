@@ -3,6 +3,20 @@
 #   npx promptfoo eval -c promptfooconfig.yaml
 description: Jinaga skills — .NET track
 
+# promptfoo caches provider responses by keying on (provider, rendered
+# prompt) — fine for a deterministic API call, wrong here: this provider's
+# real output is a side effect (a modified project on disk under
+# evals/.runs/), and `npm run eval` clears .runs/ on every run. A cache hit
+# would replay a transcript pointing at a directory that no longer exists,
+# and — worse — would silently skip re-running the agent at all on a
+# second pass, defeating the entire point of re-running after a skill
+# change. Confirmed the hard way: a second live run this way scored 0 on
+# both javascript judges with "no metadata.resultProjectDir", not because
+# the skill regressed but because the response was replayed from cache
+# against an already-deleted run directory.
+evaluateOptions:
+  cache: false
+
 providers:
   - id: exec:./providers/claude-code-dotnet.sh
     label: claude-code-with-dotnet-skills
@@ -19,3 +33,8 @@ defaultTest:
     # relative to a plain LLM call — don't let promptfoo's default
     # per-assertion timeout cut a build off early.
     timeout: 120000
+    # llm-rubric grades with OpenAI by default; this repo only assumes an
+    # Anthropic key is available (consistent with the provider above, which
+    # runs the Claude Code CLI), so point every rubric assertion at Claude
+    # explicitly rather than relying on OPENAI_API_KEY existing.
+    provider: anthropic:claude-sonnet-5

@@ -1,24 +1,25 @@
 #!/usr/bin/env bash
-# promptfoo custom script provider for the .NET track.
+# promptfoo custom script (exec:) provider for the .NET track.
 # https://www.promptfoo.dev/docs/providers/custom-script/
 #
-# Contract (verified against promptfoo's docs): promptfoo calls this with
-# (prompt, options_json, context_json) and expects a single JSON object on
-# stdout shaped like a ProviderResponse: { "output": "...", "metadata": {...} }.
-# `metadata` becomes `context.metadata` inside every assertion that grades
-# this test — that's the channel ../judges/dotnet-build-and-test.js uses to
-# find the project this run produced (`context.metadata.resultProjectDir`).
+# Contract (verified against promptfoo's own source,
+# src/providers/scriptCompletion.ts): promptfoo calls this with
+# (prompt, options_json, context_json) and takes this script's ENTIRE
+# stdout, verbatim, as the ProviderResponse's `output` string — nothing
+# more. It does NOT parse stdout as JSON and this provider type has no
+# separate `metadata` channel, unlike a custom JS/Python provider — an
+# earlier version of this script assumed otherwise and it took a live run
+# to catch. So: this script still prints a `{ output, metadata }` JSON
+# envelope below, but the only thing that reaches a judge is that whole
+# string as `output` — judges parse it themselves
+# (../judges/_provider-envelope.js) to get resultProjectDir back out.
 #
 # Verified pieces: `npx openskills install <local-path>` (installs every
 # skill in this repo without needing a GitHub remote — confirmed against the
-# openskills CLI actually installed here), and `claude -p ... --dangerously-skip-permissions`
-# (confirmed against `claude --help`).
-#
-# Not yet verified: an actual live run against a real model — this has been
-# checked for correct wiring and correct flags, not run end to end, since
-# that costs real API time/tokens. Run one scenario by hand
-# (`npx promptfoo eval -c promptfooconfig.yaml --filter-pattern task-rename`,
-# from evals/) and read evals/.runs/<run-id>/ before trusting this in CI.
+# openskills CLI actually installed here), `claude -p ... --dangerously-skip-permissions`
+# (confirmed against `claude --help` and a live run), and a live run
+# producing a real, correct rename feature end to end (see
+# evals/README.md's Status section).
 set -euo pipefail
 
 PROMPT="$1"

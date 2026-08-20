@@ -10,25 +10,56 @@ the judges (how a result is scored).
 
 ## Status
 
-The full pipeline — provider copies the fixture, installs this repo's
-skills into the copy via `openskills`, runs the coding agent, and hands both
-judges a real path on disk to inspect — is wired and dry-run verified (a
-stub CLI standing in for `claude`, so the plumbing is exercised without
-spending real API calls): JSON escaping through the shell, the
-`resultProjectDir` hand-off via promptfoo's `metadata` channel, both judges
-reading real files and running real `dotnet build`/`dotnet test`. That dry
-run caught and fixed two real bugs along the way — worth knowing about if
-you're editing `claude-code-dotnet.sh` again: a `${3:-{}}` bash default that
-silently corrupted JSON (bash's `:-` isn't brace-matching-aware), and a
-`prior` idiom-check regex that had the C# positional-record parameter order
-backwards. Both are called out in comments at the fix site.
+**The `task-rename` scenario passes end to end against a live model** —
+provider copies the fixture, installs this repo's skills into the copy via
+`openskills`, runs Claude Code non-interactively, and both judges read the
+result back off disk. All three assertions pass independently on a fresh
+(cache genuinely bypassed) run: the idiom judge finds no violations across
+the 5 `.cs` files produced, `dotnet build`/`dotnet test` both succeed for
+real, and the `llm-rubric` scores 0.9 — Claude added `TaskTitle` as its own
+fact type with a `prior` array, a `CurrentTitle` specification using
+`WhereCurrent`, and two tests covering rename-then-read and
+rename-twice-leaves-one-current.
 
-**Not yet done: an actual run against a live model.** Nothing above proves
-the exact `claude -p ... --dangerously-skip-permissions` invocation
-produces a usable transcript from a real coding session, only that it's the
-documented flag set. Run one scenario for real
-(`cd evals && npm install && npm run eval`) and read the result in
-`evals/.runs/<run-id>/` before trusting this in CI.
+Getting there took four live runs. The first three each found a real bug
+that a dry run (a stub CLI standing in for `claude`, exercising the
+shell/JSON plumbing without spending API calls) had not and could not have
+caught, because each one only shows up once promptfoo itself is actually
+driving the provider:
+
+1. **Wrong `file://` base path.** Assertion paths in a scenario resolve
+   relative to `promptfooconfig.yaml`'s directory (`evals/`), not the
+   scenario file's own directory — `scenarios/<skill>/task-rename.yaml` had
+   `file://../../judges/...` on the assumption promptfoo resolves relative
+   to itself; the correct path from `evals/` is just `file://judges/...`.
+2. **promptfoo caches provider responses by default**, keyed on
+   (provider, rendered prompt). Fine for a deterministic API call; wrong
+   here, where the provider's real output is a side effect on disk that
+   `npm run eval` deliberately clears between runs — a cache hit replayed a
+   transcript pointing at an already-deleted directory, and worse, would
+   have silently skipped re-running the agent on every subsequent run.
+   Fixed with `evaluateOptions.cache: false` in `promptfooconfig.yaml`.
+3. **`exec:` providers have no `metadata` channel.** The original design
+   had the provider script return a `{ output, metadata }` JSON envelope on
+   the (correct, for a custom JS/Python provider) assumption that promptfoo
+   would surface `metadata` to judges as `context.metadata`. It doesn't,
+   for this provider type — confirmed against promptfoo's own source
+   (`scriptCompletion.ts`): the *entire* stdout, unparsed, becomes the
+   `output` string, full stop. Fixed by having judges parse that JSON
+   envelope back out of `output` themselves
+   (`judges/_provider-envelope.js`), rather than reading a `context.metadata`
+   that was silently always empty.
+
+A live run also surfaced a real gap in `authoring-jinaga-specifications-dotnet`
+itself, independent of harness plumbing: the skill's example imported
+`WhereCurrent` from `Jinaga.Extensions`, but in the pinned `Jinaga 1.1.39`
+package it's actually in `Jinaga.Patterns` — verified independently by
+disassembling the NuGet package (not just trusting the model's self-report)
+and by compiling and running a scratch test against both `WhereCurrent` and
+the real `WhereNotDeletedOrRestored` delete/restore helper the skill hadn't
+been documenting at all (it hand-rolled a nested existential using a
+`WhereNotExists` method that doesn't exist in the real API). Both are now
+fixed in the skill with verified-correct code.
 
 ## Scenario schema
 
@@ -47,8 +78,11 @@ vars:
     point is to check whether the skill supplies that, not to hand it to
     the model in the prompt.
 assert:
+  # file:// paths in an assertion resolve relative to promptfooconfig.yaml's
+  # directory (evals/), not the scenario file's own directory — even though
+  # this file lives under scenarios/<skill-name>/.
   - type: javascript
-    value: file://../../judges/<judge>.js
+    value: file://judges/<judge>.js
   - type: llm-rubric
     value: >
       A rubric an LLM judge grades the transcript against, for anything a
@@ -99,11 +133,15 @@ after a run for debugging, before the next `npm run eval` clears it.
 Point a scenario at a different fixture directory with a `fixture` var if
 the default (`evals/fixtures/dotnet-starter`) doesn't apply.
 
-The provider reports where the modified project ended up via the
-`metadata` field of its response — promptfoo surfaces that to every
-assertion as `context.metadata`. Both `.NET`-track judges read
-`context.metadata.resultProjectDir` from there; that's the mechanism to
-reuse if a future judge also needs to look at the result on disk.
+The provider prints a `{ output, metadata: { resultProjectDir } }` JSON
+envelope to stdout. Because this is an `exec:` provider, promptfoo does not
+parse that — the whole string becomes the `output` every assertion
+receives as its first argument, unparsed. Judges recover
+`resultProjectDir` by parsing `output` as JSON themselves — see
+`judges/_provider-envelope.js`, shared by both `.NET`-track judges. Reuse
+that helper for any future judge that also needs to look at the result on
+disk; don't reach for `context.metadata`, which is always empty for this
+provider type.
 
 ## Running the suite
 

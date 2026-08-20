@@ -8,20 +8,28 @@
 // that, and with dotnet-build-and-test.js for whether the result actually
 // compiles and passes.
 //
-// Reads real .cs files from context.metadata.resultProjectDir (the same
-// hand-off dotnet-build-and-test.js uses — see the note there), not the
-// `output` transcript text. The transcript is Claude's own account of what
-// it did; the source on disk is what it actually did, and those can differ.
+// Reads real .cs files from resultProjectDir, found by parsing the
+// provider's JSON envelope out of `output` itself — see
+// _provider-envelope.js for why (promptfoo's exec provider type has no
+// separate metadata channel; this was wired wrong in an earlier version
+// and fixed after a live run made the failure obvious). Deliberately does
+// NOT check the `output` transcript text for these idioms — the transcript
+// is Claude's own account of what it did; the source on disk is what it
+// actually did, and a live run turned up a case where those differed (the
+// transcript mentioned an import fix that turned out to matter for
+// compilation, not for these idiom checks).
 //
 // promptfoo custom JS assertion contract:
 // https://www.promptfoo.dev/docs/configuration/expected-outputs/javascript/
 //
 // STATUS: checks are written against the idioms documented in the .NET
-// skills, but this hasn't yet been run against a real model's output —
-// treat findings from it as a starting point to refine, not as settled.
+// skills and verified against real generated output from a live run.
+// Treat findings as a starting point to refine as more scenarios exercise
+// more idioms, not as an exhaustive or final set.
 
 const fs = require("fs");
 const path = require("path");
+const { parseProviderEnvelope } = require("./_provider-envelope.js");
 
 function findCsFiles(dir) {
   const results = [];
@@ -73,14 +81,20 @@ const CHECKS = [
   },
 ];
 
-module.exports = (output, context) => {
-  const projectDir = context?.metadata?.resultProjectDir;
+module.exports = (output) => {
+  const { resultProjectDir: projectDir, providerError, parseError } = parseProviderEnvelope(output);
+
+  if (parseError) {
+    return { pass: false, score: 0, reason: parseError };
+  }
 
   if (!projectDir) {
     return {
       pass: false,
       score: 0,
-      reason: "No metadata.resultProjectDir on the provider response — see the hand-off note at the top of this file.",
+      reason: providerError
+        ? `Provider did not produce a project to check: ${providerError}`
+        : "No metadata.resultProjectDir in the provider's output envelope.",
     };
   }
 

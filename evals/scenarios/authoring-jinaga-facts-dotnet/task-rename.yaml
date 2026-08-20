@@ -18,10 +18,13 @@ vars:
     prove: renaming a task still lets you read its (new) title, and renaming
     a task twice in a row leaves exactly one current title.
 assert:
+  # Resolved relative to promptfooconfig.yaml's directory (evals/), not
+  # this scenario file's own directory — confirmed the hard way, by a live
+  # run failing with ENOENT against a path two levels too far up.
   - type: javascript
-    value: file://../../judges/dotnet-idioms.js
+    value: file://judges/dotnet-idioms.js
   - type: javascript
-    value: file://../../judges/dotnet-build-and-test.js
+    value: file://judges/dotnet-build-and-test.js
   - type: llm-rubric
     value: >
       Passes only if all of the following are true: (1) the title is

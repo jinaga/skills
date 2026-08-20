@@ -15,7 +15,8 @@ Specifications are declarative queries over the fact graph, built with
 ## Basic shape
 
 ```csharp
-using Jinaga.Extensions;
+using Jinaga.Extensions; // Successors(), OfType()
+using Jinaga.Patterns;   // WhereCurrent(), WhereNotDeleted(), WhereNotDeletedOrRestored()
 
 private static Specification<Task, TaskProjection> CurrentTitleQuery() =>
     Given<Task>.Match(task =>
@@ -46,18 +47,27 @@ Apply this at every point a mutable-property fact type is read, not just
 once somewhere in the file — a second read site that omits it will return
 every historical value, not just the current one.
 
-## Delete/restore as a nested existential
+## Delete/restore: use the built-in pattern helper, don't hand-roll it
+
+`Jinaga.Patterns` ships `WhereNotDeletedOrRestored` specifically for the
+delete/restore pattern — reach for it instead of writing the nested
+existential by hand:
 
 ```csharp
 Given<Project>.Match(project =>
     project.Successors().OfType<Task>(t => t.project)
-        .WhereNotExists(task => task.Successors().OfType<TaskDeletion>(d => d.task)
-            .WhereNotExists(d => d.Successors().OfType<TaskRestoration>(r => r.taskDeletion)))
+        .WhereNotDeletedOrRestored(
+            (TaskDeletion d) => d.task,
+            (TaskRestoration r) => r.taskDeletion)
 )
 ```
 
-Read this from the inside out: a `TaskDeletion` doesn't count against a task
-if it has itself been restored.
+Both selectors point *from* the deletion/restoration fact *back* to what it
+deletes or restores — the same predecessor direction as `OfType`'s own
+selector, not a `Successors()` walk forward. Read the semantics as: a `Task`
+is excluded if it has a `TaskDeletion`, unless that `TaskDeletion` itself has
+a `TaskRestoration`. There's a plain `WhereNotDeleted` too, for a fact type
+that's only ever deleted, never restored.
 
 ## Projections combine multiple relations in one round trip
 
