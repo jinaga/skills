@@ -17,11 +17,25 @@ Use this skill when creating view models for XAML-based applications (.NET MAUI,
 
 ## Prerequisites
 
+```bash
+dotnet add package Assisticant
+```
+
 ```csharp
-#r "nuget: Assisticant, 1.5.8"
 using Assisticant;
 using Assisticant.Collections;
 ```
+
+The latest published package (1.5.8, February 2022) ships only
+`net45`/`MonoAndroid`/`Xamarin.iOS` binaries — no `net6.0`+ or
+`netstandard2.0` target. Referencing it from a modern .NET project (MAUI,
+net8.0+) restores via the .NET Framework compatibility shim, with an
+`NU1701` warning, not a native match. Verified that far: `Observable<T>`,
+`ObservableList<T>`, and `ComputedList<T>` do compile and run correctly
+under the shim on a modern .NET runtime. Not verified: actual XAML data
+binding or MAUI/WPF-specific behavior through the shim — that's a
+different kind of concern than a plain C# compile-and-run check, and
+should be confirmed against the real UI framework before relying on it.
 
 ## Quick Start
 

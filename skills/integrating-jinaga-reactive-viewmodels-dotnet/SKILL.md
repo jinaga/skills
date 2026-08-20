@@ -57,9 +57,26 @@ awaits *that*, not the observer directly, so a view model with more than
 one observer can compose them (`Task.WhenAll(...)`) behind one call.
 
 Expose derived values as computed properties rather than maintaining them by
-hand — a reactive framework (e.g. Assisticant's `ComputedList`) recomputes
-them automatically whenever `_tasks` changes, which keeps the view model from
-accumulating manual update calls scattered across every mutation site.
+hand. A single derived value is a plain computed property reading `_tasks`;
+a derived *collection* — filtered, sorted, or reshaped from `_tasks` — is
+Assisticant's `ComputedList<T>` instead, which tracks `_tasks` as a
+dependency and recomputes only when it changes:
+
+```csharp
+private readonly ComputedList<TaskProjection> _overdueTasks;
+public IEnumerable<TaskProjection> OverdueTasks => _overdueTasks;
+
+// in the constructor, after _observer is set up:
+_overdueTasks = new ComputedList<TaskProjection>(() =>
+    _tasks.Where(t => t.DueDate < DateTime.UtcNow));
+```
+
+`ComputedList<T>` itself is a general Assisticant type, not a Jinaga one —
+see `assisticant-view-models`'s
+[computed-properties.md](../assisticant-view-models/computed-properties.md)
+for the full API and when to reach for it over a plain computed property.
+This is the Jinaga-specific half: the source it's computing over is data
+`j.Watch()` populated.
 
 ## Marshal to the UI thread
 
@@ -76,13 +93,32 @@ the screen.
 ## Design-first: model, visualize, then implement
 
 Before writing the view model — or the fact types, if the model is still in
-flux — sketch the fact graph and a couple of example specifications in a
-notebook (a Polyglot Notebook works well for this), render the type graph
-and a sample instance graph with Graphviz (`diagramming-historical-models`
-covers the notation), and confirm the shape against a couple of real
-examples. Only once that's settled, copy the finished fact types and
-specifications into the actual project and add tests
-(`testing-jinaga-dotnet`). Designing directly in the application project
-tends to hide problems that a quick, disposable notebook surfaces
-immediately — a wrong cardinality or a missing existential filter is much
-cheaper to notice before it's wired into a view model and a XAML binding.
+flux — sketch the fact graph and confirm its shape against a couple of real
+examples *before* wiring it into a view model and a XAML binding. A wrong
+cardinality or a missing existential filter is much cheaper to notice at
+this stage than after it's live in a screen. Two ways to do the "sketch
+and confirm" part, combinable:
+
+- **Diagram it** — draw the fact-type graph and a sample instance graph by
+  hand, per `diagramming-historical-models`'s notation. (Polyglot Notebooks
+  used to make this interactive via the `Jinaga.Notebooks` package's
+  `Renderer`/`AsTable` helpers — that package's notebook-facing API is
+  built on notebook-kernel display types and is dead weight without a
+  notebook host, since Polyglot Notebooks is no longer supported. Its
+  `Jinaga.Notebooks.Dot` namespace is a separate, plain-string API that
+  still works standalone, though: `Dot.Renderer.RenderTypes(typeof(...))`
+  and `j.RenderFacts(...)` (via `Dot.JinagaClientExtensions`) generate the
+  same Graphviz notation from real fact types or fact instances, callable
+  from a throwaway console app or test and piped through `dot -Tsvg` —
+  useful if hand-drawing a graph with many fact types gets tedious, though
+  hand-drawing is the default and needs nothing beyond the notation.)
+- **Prove it with a test** — write a scratch `JinagaTest`-based test (per
+  `testing-jinaga-dotnet`) that saves a couple of example facts and queries
+  them back through the specification. This is the same "does the shape
+  actually behave the way I think it does" check as the diagram, aimed at
+  behavior instead of structure — cheap, disposable, and doesn't depend on
+  any tooling beyond what's already needed to test the real thing.
+
+Only once the shape is confirmed, copy the finished fact types and
+specifications into the actual project and keep the test (or write a
+proper one) rather than discarding it.

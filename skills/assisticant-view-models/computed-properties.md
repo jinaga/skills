@@ -113,3 +113,48 @@ public class OrderViewModel
 - **No parameters**: Computed properties cannot take parameters
 - **Automatic tracking**: Dependencies are tracked automatically - no manual registration needed
 - **Nested dependencies**: Can depend on other computed properties
+
+## Computed Collections: `ComputedList<T>`
+
+A property computed with `.Sum()`, `.Where()`, or similar LINQ over an
+`ObservableList<T>` (as in [Dependencies](#dependencies) above) is fine for
+a scalar result, but re-projecting a whole *collection* that way — `public
+IEnumerable<X> Filtered => Items.Where(...)` — recomputes the entire
+projection from scratch on every dependency change, discarding whatever
+identity/order tracking the UI had for unchanged items. `ComputedList<T>`
+exists for exactly this case: a derived collection that needs its own
+incremental, observable identity, not just a plain computed property that
+happens to return an `IEnumerable<T>`.
+
+```csharp
+using Assisticant.Collections;
+
+public class OrderViewModel
+{
+    private ObservableList<LineItem> items = new ObservableList<LineItem>();
+    public IEnumerable<LineItem> Items => items;
+
+    private ComputedList<LineItem> discountedItems;
+    public IEnumerable<LineItem> DiscountedItems => discountedItems;
+
+    public OrderViewModel()
+    {
+        discountedItems = new ComputedList<LineItem>(() =>
+            items.Where(item => item.Price > 100)
+                 .OrderByDescending(item => item.Price));
+    }
+}
+```
+
+- **Construct once, in the constructor** — not inline on the property
+  getter, unlike a plain computed property.
+- **Automatic dependency tracking**: the lambda passed to `ComputedList<T>`
+  is re-evaluated when anything it reads (an `ObservableList<T>`, another
+  `ComputedList<T>`, an `Observable<T>`) changes — same tracking mechanism
+  as a scalar computed property, just producing a collection instead of a
+  single value.
+- **Expose as `IEnumerable<T>`**, never the raw `ComputedList<T>` — same
+  rule as `ObservableList<T>` (see [collections.md](collections.md)).
+- **Use a plain computed property instead when the result is a single
+  value** (a sum, a count, a boolean) — reserve `ComputedList<T>` for when
+  the derived *shape* is itself a collection a view needs to bind to.
