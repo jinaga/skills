@@ -1,0 +1,21 @@
+# Eval suite for the .NET track. See ../docs/skill-architecture.md and
+# ./README.md before editing. Run with:
+#   npx promptfoo eval -c promptfooconfig.yaml
+description: Jinaga skills — .NET track
+
+providers:
+  - id: exec:./providers/claude-code-dotnet.sh
+    label: claude-code-with-dotnet-skills
+
+# Each file under scenarios/ is one promptfoo test case (see README.md for
+# the schema). The glob below picks up every skill's scenarios in one run;
+# narrow it to `scenarios/<skill-name>/**` while iterating on one skill.
+tests:
+  - file://scenarios/**/*.yaml
+
+defaultTest:
+  options:
+    # Scenarios assert on real dotnet build/test output, which is slow
+    # relative to a plain LLM call — don't let promptfoo's default
+    # per-assertion timeout cut a build off early.
+    timeout: 120000

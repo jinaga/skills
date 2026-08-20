@@ -1,0 +1,19 @@
+### Node / promptfoo ###
+node_modules/
+.promptfoo/
+promptfoo-output/
+npm-debug.log*
+
+### .NET ###
+bin/
+obj/
+*.user
+
+### OS / editors ###
+.DS_Store
+.vscode/
+.idea/
+
+### Eval scratch ###
+evals/**/tmp/
+evals/**/*.actual.json

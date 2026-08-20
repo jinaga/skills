@@ -1,0 +1,33 @@
+description: >
+  Sourced from the mutable-property (prior-chain) pattern used throughout
+  production Jinaga.NET applications for anything editable — a name, a
+  specification, a title. Checks that a rename feature is modeled as its own
+  fact type with a `prior` array rather than a mutated field, that the
+  "current title" query filters out superseded values, and that a concurrent
+  rename (two edits against the same prior) is handled rather than assumed
+  away. Exercises authoring-jinaga-facts-dotnet,
+  authoring-jinaga-specifications-dotnet, and testing-jinaga-dotnet together,
+  since a rename feature isn't done until all three are right.
+vars:
+  fixture: dotnet-starter
+  prompt: >
+    In the TaskTracker.Core project, add the ability to rename a Task. A
+    Task already has a Project predecessor and a createdAt field, but no
+    title yet. Add whatever fact type(s) and specification are needed so the
+    current title of a task can be queried, wire it up, and write tests that
+    prove: renaming a task still lets you read its (new) title, and renaming
+    a task twice in a row leaves exactly one current title.
+assert:
+  - type: javascript
+    value: file://../../judges/dotnet-idioms.js
+  - type: javascript
+    value: file://../../judges/dotnet-build-and-test.js
+  - type: llm-rubric
+    value: >
+      Passes only if all of the following are true: (1) the title is
+      modeled as its own fact type with a `prior` array parameter, not as a
+      mutable field on Task; (2) the first title fact for a task is created
+      with an empty `prior`; (3) the specification for "current title"
+      filters out any title that another title's `prior` lists (a
+      WhereCurrent-shaped filter); (4) a test renames a task twice and
+      asserts exactly one current title remains after both renames.

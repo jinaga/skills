@@ -1,0 +1,12 @@
+{
+  "name": "jinaga-skills-evals",
+  "private": true,
+  "description": "Eval harness for jinaga/skills, run with promptfoo",
+  "scripts": {
+    "eval": "promptfoo eval -c promptfooconfig.yaml",
+    "view": "promptfoo view"
+  },
+  "devDependencies": {
+    "promptfoo": "latest"
+  }
+}
