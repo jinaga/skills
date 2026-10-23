@@ -79,16 +79,17 @@ component rather than a model change:
   is installed, so an agent can render the component it writes.
 
 Pinned to `jinaga-react` 6.0.0, the first version with the `{ data,
-loading, failure }` result the `integrating-jinaga-react` skill teaches. It
-was verified with `npx tsc --noEmit` / `npx vitest run`, and both judges, using
-a local build of jinaga-react 6 and a hand-written `TaskList.tsx` like the
-skill's example. The judge also flagged hand-written violations of each rule.
+loading, failure }` result the `integrating-jinaga-react` skill teaches.
+Verified with `npx tsc --noEmit` / `npx vitest run` after a plain `npm
+install` from the committed lockfile, and with both judges against a
+hand-written `TaskList.tsx` like the skill's example. The judge also
+flagged hand-written violations of each rule.
 
-**No `package-lock.json` yet.** A fresh resolve of `vitest` 4.1.11 fails on
-npm 10.9 with `Cannot read properties of null (reading 'edgesOut')`, even
-in an empty directory; `typescript-starter` avoids that only because its
-lockfile is committed. Once jinaga-react 6.0.0 is on npm, generate this
-fixture's lockfile with `npm install --legacy-peer-deps` and commit it.
+**Regenerating the lockfile needs `npm install --legacy-peer-deps`.** A
+fresh resolve of `vitest` 4.1.11 fails on npm 10.9 with `Cannot read
+properties of null (reading 'edgesOut')`, even in an empty directory. A
+plain `npm install` from the committed lockfile, which is what the provider
+runs, works.
 
 ## Shared provider
 
