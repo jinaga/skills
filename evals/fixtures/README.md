@@ -65,6 +65,32 @@ works on a real, materialized fact returned from a query, never on the
 `LabelOf<T>` proxy a specification's `match`/`select` callback receives
 while the specification is being built.
 
+## `typescript-react-starter`
+
+Referenced by `evals/scenarios/integrating-jinaga-react/task-list.yaml`.
+The `typescript-starter` model plus React, so a scenario can grade a
+component rather than a model change:
+
+- `src/model.ts` — `Project`, `Task`, and a `TaskTitle` with a `prior`
+  chain, plus a `tasksInProject` specification that projects each task with
+  its current titles. The model is complete; a scenario adds UI.
+- `src/model.test.ts` — one passing vitest test against `JinagaTest`.
+- `vitest.config.ts` runs tests in `jsdom`, and `@testing-library/react`
+  is installed, so an agent can render the component it writes.
+
+Pinned to `jinaga-react` 6.0.0, the first version with the `{ data,
+loading, failure }` result the `integrating-jinaga-react` skill teaches.
+Verified with `npx tsc --noEmit` / `npx vitest run` after a plain `npm
+install` from the committed lockfile, and with both judges against a
+hand-written `TaskList.tsx` like the skill's example. The judge also
+flagged hand-written violations of each rule.
+
+**Regenerating the lockfile needs `npm install --legacy-peer-deps`.** A
+fresh resolve of `vitest` 4.1.11 fails on npm 10.9 with `Cannot read
+properties of null (reading 'edgesOut')`, even in an empty directory. A
+plain `npm install` from the committed lockfile, which is what the provider
+runs, works.
+
 ## Shared provider
 
 `providers/claude-code.sh` is shared across every track — copies whichever
