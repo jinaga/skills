@@ -1,0 +1,24 @@
+{
+  "name": "typescript-react-starter",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "jinaga": "6.11.3",
+    "jinaga-react": "6.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "jsdom": "29.1.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

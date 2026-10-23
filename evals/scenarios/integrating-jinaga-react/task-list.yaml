@@ -1,0 +1,42 @@
+description: >
+  Checks how a component renders useSpecification's result in jinaga-react
+  6, where data, loading and failure are independent UI instructions
+  (jinaga/jinaga-react#27). Drawn from a production invitation lookup whose
+  code inherited request-cache habits: a spinner on `data === null` (which
+  flashes before cached data appears), an if/else chain that hid cached rows
+  behind a failure, and clearError used as a retry (which showed the empty
+  state for a read that never answered). The prompt asks for every state a
+  developer would name, in the order they'd name them, which is the order
+  that invites an early-return chain. It never names the result fields or
+  the rendering pattern. Exercises integrating-jinaga-react, with
+  testing-jinaga-typescript for the component test.
+vars:
+  fixture: typescript-react-starter
+  prompt: >
+    Add a TaskList React component in src/TaskList.tsx that takes a Jinaga
+    client and a Project and lists the project's tasks with their current
+    titles, using the existing tasksInProject specification. The app works
+    offline, so tasks that are already on the device should appear right
+    away. While tasks are being fetched, show a loading indicator. If the
+    tasks can't be loaded, show an error and, when it makes sense, a way to
+    try again. If the project has no tasks, say so. Write tests for the
+    component.
+assert:
+  # Resolved relative to promptfooconfig.yaml's directory (evals/), not
+  # this scenario file's own directory.
+  - type: javascript
+    value: file://judges/react-render-idioms.js
+  - type: javascript
+    value: file://judges/typescript-build-and-test.js
+  - type: llm-rubric
+    value: >
+      Passes only if all of the following are true of src/TaskList.tsx:
+      (1) it destructures `data`, `loading` and `failure` from
+      useSpecification and uses none of `error`, `clearError`,
+      `distributionPending` or `distributionDiagnostic`; (2) the loading
+      indicator is shown only when `loading` is true, never because `data`
+      is null; (3) when `data` is null the component renders nothing for
+      the list; (4) an empty array renders the "no tasks" message; (5) the
+      failure is rendered alongside the list rather than instead of it, with
+      no early return on `data`, `loading` or `failure`; (6) a retry action
+      is shown only when `failure.retry` is not null, and calls it.
