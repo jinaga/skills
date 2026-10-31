@@ -52,7 +52,7 @@ it("rejects a project authored on behalf of someone else", async () => {
     await expect(j.fact(new Project(creator, new Date()))).rejects.toThrow();
 });
 
-it("rejects a query from a user the share rule doesn't cover", async () => {
+it("returns nothing to a user the share rule doesn't cover", async () => {
     const owner = new User("--- owner ---");
     const stranger = new User("--- stranger ---");
     const j = JinagaTest.create({
@@ -60,15 +60,35 @@ it("rejects a query from a user the share rule doesn't cover", async () => {
         user: stranger,
         initialState: [owner, new Project(owner, new Date())],
     });
-    await expect(j.query(projectsByUser, owner)).rejects.toThrow();
+    const { results, diagnostics } = await j.queryWithDiagnostics(projectsByUser, owner);
+    expect(results).toEqual([]);
+    expect(diagnostics.map(d => d.code)).toContain("principal-excluded");
+});
+
+// import { DistributionDeniedError } from "jinaga";
+it("refuses a specification no rule shares", async () => {
+    const owner = new User("--- owner ---");
+    const j = JinagaTest.create({ model, authorization, distribution, user: owner });
+    await expect(j.query(unsharedSpecification, owner)).rejects.toThrow(DistributionDeniedError);
 });
 ```
 
+The test client decides as the replicator does, so the two kinds of refusal
+look different:
+
+- **Structural** (`no-matching-rule`, `spec-more-restrictive-than-rule`): no
+  rule shares this specification, or it is narrower than the rule that
+  would. `j.query()` rejects with `DistributionDeniedError`.
+- **Who the user is** (`principal-excluded`, `not-authenticated`): a later
+  fact could change it, so `j.query()` resolves with `[]`. Assert the code
+  through `j.queryWithDiagnostics()`.
+
 Seed the *other* party's facts via `initialState`, not by authoring them as
 the test's own user — `initialState` bypasses authorization, so it can hold
-facts the test's own identity isn't allowed to create. A component's
-reactive `useSpecification` read never proves a distribution denial the way
-a direct `j.query()` rejection does — see `integrating-jinaga-react`.
+facts the test's own identity isn't allowed to create. Test each screen's
+specification under the user who will run it; a component's
+`useSpecification` result shows a denial only as an empty list
+(`integrating-jinaga-react`).
 
 ## Compare facts by hash, never by reference
 

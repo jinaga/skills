@@ -10,7 +10,7 @@
   <ItemGroup>
     <!-- Pinned to the latest version verified to build clean as of this
          commit. Bump deliberately, not by floating — see ../README.md. -->
-    <PackageReference Include="Jinaga" Version="1.1.39" />
+    <PackageReference Include="Jinaga" Version="1.1.54" />
   </ItemGroup>
 
 </Project>
