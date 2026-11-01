@@ -11,7 +11,10 @@ language for everything downstream of the model.
 
 **Spine** — historical modeling in the Factual pattern language doesn't
 depend on whether the resulting facts end up as C# records or TypeScript
-classes. Model it once.
+classes. Model it once. The same holds for specifications and rules: what a
+query matches, which labels it declares, and who a rule names are properties
+of Factual, so they are designed once in the spine and only translated in
+each track.
 
 **Tracks** — translating a fact model into code, testing it, and wiring it
 into a UI diverges sharply between Jinaga.NET and Jinaga JS/TypeScript: the
@@ -30,11 +33,12 @@ eval harness had proven out end to end — see [Rollout](#rollout).
 
 | Skill | Fires on | Core content |
 |---|---|---|
-| `designing-historical-models` | "Model X as facts", "how should I represent Y over time" | Decisions-not-state modeling stance; the historical-modeling pattern catalog (Entity, Delete/Restore, Mutable Property, Membership, Period, Transaction, Queue…); naming idioms; a data-first authoring loop |
+| `designing-historical-models` | "Model X as facts", "how should I represent Y over time" | Decisions-not-state modeling stance; mutable properties, lifecycle decisions, delete/restore, membership and roles; designing each fact so its rule can be written (same-owner links, approvals as facts); naming idioms; a data-first loop written as a story of decisions |
+| `authoring-factual-specifications` | "Design a query", "who can create/read this", before writing either language's syntax | Factual notation for specifications and rules; labels are declared explicitly; no field comparisons or post-processing; current-value, delete/restore, and "every X has a Y" patterns; rules as specifications, walking predecessors before successors, same-owner links, distribution shares |
 | `diagramming-historical-models` | "Diagram this model", "draw the fact graph" | Fact-type graph notation (entities, predecessor arrows, cardinality), specification overlays, fact-instance graphs |
 | `reviewing-model-idioms` | "Review this model", "why is this query returning stale or duplicate rows" | A checklist of the most common historical-modeling defects: forgetting to filter a superseded or tombstoned fact out of a read, encoding lifecycle state as a mutable field instead of a fact, vague names that hide what a group-by or sub-specification actually represents |
 
-These three assume nothing beyond a coding agent and the ability to read and
+These four assume nothing beyond a coding agent and the ability to read and
 write plain text — no MCP server, no external service. They're the first
 thing a developer reaches for before any code exists.
 
@@ -44,23 +48,23 @@ thing a developer reaches for before any code exists.
 |---|---|---|
 | `authoring-jinaga-facts-dotnet` | "Define this fact type in C#", "add a property to this record" | `record`, never `class`; `[FactType]` dotted naming; predecessors as constructor parameters; the mutable-value-via-successor-fact (`prior`) pattern; disambiguating anchor facts; encapsulating relations on framework types via `Relation<T>` extension members |
 | `authoring-jinaga-specifications-dotnet` | "Write a query in C#", "project this data" | `Given<T>.Match(...)` syntax; `Successors().OfType<T>(...)`; `WhereCurrent(next => next.prior)`; the hard limit that specifications only project and filter by relationship — sorting, counting, and grouping happen after materialization |
-| `testing-jinaga-dotnet` | "Write a test for this fact or spec" | `JinagaTest.Create()`; a `GivenXxx` test-data-builder convention; testing concurrent edits and their resolution; waiting for a watch to settle deterministically instead of `Task.Delay` |
-| `integrating-jinaga-reactive-viewmodels-dotnet` | "Build a view model for this spec", "bind this to XAML" | Reactive collections populated from `j.Watch()`; marshaling background-thread callbacks to the UI thread; disposal; a design-first workflow (sketch the model, visualize it, then implement) |
+| `authoring-authorization-distribution-dotnet` | "Who can create/read this", "deploy the rules" | `JinagaConfig` holding `AuthorizationRules` and `DistributionRules`; deny by default, rules for one type combine as OR; memberships as relations and conditions; same-owner links; sharing the specifications the app runs; enforcing on the client and deploying with `dotnet jinaga` |
+| `testing-jinaga-dotnet` | "Write a test for this fact, spec, or rule" | `JinagaTest.Create()`; a `GivenXxx` test-data-builder convention; testing concurrent edits and their resolution; testing rules with the rules on (`User`, `Authorization`, `Distribution`, `InitialState`); replaying the example story; waiting for a watch to settle deterministically instead of `Task.Delay` |
+| `integrating-jinaga-reactive-viewmodels-dotnet` | "Build a view model for this spec", "bind this to XAML" | Reactive collections populated from `j.Watch()`; live changes inside a row via `IObservableCollection<T>`; marshaling callbacks to the UI thread; disposal; a design-first workflow (sketch the model, visualize it, then implement) |
 
 ### TypeScript track
 
 | Skill | Fires on | Core content |
 |---|---|---|
 | `authoring-jinaga-facts-typescript` | "Define this fact type in TS", "add a field to this fact class" | Class + static `Type` + `ModelBuilder` registration; predecessors as constructor parameters; the static-query-helper-per-need convention (`.of`/`.by`/`.current`); the `prior`-chain mutable-value pattern; delete/restore; reconstructable key facts; schema evolution via `undefined`-skipping hashing |
-| `authoring-jinaga-specifications-typescript` | "Write a specification", "query/project this data" | `model.given(T).match(...)`; `.successors()`/`.predecessor()`; `.notExists()`/`.exists()`; the "predecessors must go through `.predecessor()`" rule (a runtime throw at spec-build time, not a compile error); combining reads into one round trip |
-| `authoring-authorization-distribution-typescript` | "Who can create/read this", "the replicator rejected this write" | `AuthorizationRules.type()` (and the easy-to-miss requirement that even the built-in `User` fact needs its own rule); `DistributionRules.share().with()`; the distinction between a rejected write (throws) and a denied read (quieter — offline-first); keeping the generated replicator policy artifact in sync |
-| `testing-jinaga-typescript` | "Write a test for this fact / spec / rule" | `JinagaTest.create(...)`; proving authorization and distribution rejections directly rather than through a reactive hook; comparing facts by `Jinaga.hash()`, never by reference; reconstruction tests that rebuild the key rather than reuse the seed instance |
-| `integrating-jinaga-react` | "Wire this into a component", "build a hook for this spec" | `useSpecification`'s full result shape (`loading`/`data`/`error`/`distributionPending`/`distributionDiagnostic`); why `data !== null`, not `!loading`, is the real settled signal (a cached read never sets `loading` true at all); writes via `j.fact()` |
+| `authoring-jinaga-specifications-typescript` | "Write a specification", "query/project this data" | `model.given(T).match(...)`; `.successors()`/`.predecessor()`; `.notExists()`/`.exists()`; `.predecessor()` as how TypeScript declares a label; combining reads into one round trip |
+| `authoring-authorization-distribution-typescript` | "Who can create/read this", "the replicator rejected this write" | `AuthorizationRules.type()` (including the rule the built-in `User` fact needs); `DistributionRules.share().with()`; structural vs. user-based read refusals; generating the replicator's policy file from the rules |
+| `testing-jinaga-typescript` | "Write a test for this fact / spec / rule" | `JinagaTest.create(...)`; asserting authorization refusals and both kinds of distribution decision; comparing facts by `Jinaga.hash()`, never by reference; reconstruction tests that rebuild the key rather than reuse the seed instance |
+| `integrating-jinaga-react` | "Wire this into a component", "build a hook for this spec" | `useSpecification`'s result shape (`data`/`loading`/`failure`); why `data !== null`, not `!loading`, is the settled signal; distribution decisions as the empty state; writes via `j.fact()` |
 
-TypeScript gets a fifth skill the .NET track doesn't have — authorization
-and distribution rules are a sharper edge in a networked, multi-tenant
-Jinaga JS app than in a single-user desktop app, and deserve their own
-trigger.
+Both tracks have the same five skills. Authorization and distribution rules
+matter as soon as an app syncs through a replicator, whatever its language
+or UI.
 
 Not planned yet: a top-level router skill. Add one only once real usage shows
 which routing questions actually need answering — guessing at that now would

@@ -1,0 +1,44 @@
+description: >
+  Sourced from a multi-tenant Jinaga.NET dispatch application, where tenant
+  administrators invite members, only current members may record work, and
+  a defect let one tenant's staff assign another tenant's technician (who
+  then received the first tenant's data). Checks that membership is modeled
+  as invitation plus acceptance with removal as a fact, that rules filter
+  removed members, that a fact linking a task to a member requires both to
+  belong to the same project, and that tests prove each rule allows and
+  refuses with the rules enforced. Exercises designing-historical-models,
+  authoring-factual-specifications, authoring-authorization-distribution-dotnet,
+  and testing-jinaga-dotnet together.
+vars:
+  fixture: dotnet-starter
+  prompt: >
+    In the TaskTracker.Core project, let a project's creator invite other
+    users to the project. An invited user accepts to become a member, and
+    the creator can remove a member. Members may comment on the project's
+    tasks; removed members may not. The creator may assign a task to a
+    member of that task's project, and to no one else. Add the fact types
+    and the authorization rules that enforce this, in a public static
+    JinagaConfig class, and write tests that prove each rule both allows
+    the permitted case and refuses the forbidden one with the rules
+    enforced.
+assert:
+  - type: javascript
+    value: file://judges/dotnet-idioms.js
+  - type: javascript
+    value: file://judges/dotnet-build-and-test.js
+  - type: llm-rubric
+    value: >
+      Passes only if all of the following are true: (1) membership is an
+      invitation fact created by the project's creator and an acceptance
+      fact created by the invitee, with removal as its own fact rather than
+      a field; (2) a public static JinagaConfig class exposes a
+      parameterless Authorization() that returns AuthorizationRules.Describe
+      of the rules, and the rules include a rule for Jinaga.User; (3) the
+      comment rule excludes removed members, through a condition or a
+      negative existential, not application code; (4) the assignment rule
+      requires the task's project and the member's project to be the same
+      project; (5) tests create the client with JinagaTest.Create, setting
+      the acting User, the Authorization rules, and InitialState for facts
+      other users created, and assert AuthorizationException for at least a
+      removed member commenting and an assignment to another project's
+      member, alongside a passing case for each.

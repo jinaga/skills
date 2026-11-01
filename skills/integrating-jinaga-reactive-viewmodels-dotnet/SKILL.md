@@ -11,7 +11,10 @@ description: >
 
 Once a specification exists (`authoring-jinaga-specifications-dotnet`), a
 view model's job is to keep a UI-bindable collection in sync with it via
-`j.Watch()`, and to dispose of that subscription cleanly.
+`j.Watch()`, and to dispose of that subscription cleanly. The examples use
+Assisticant (`assisticant-view-models`); with CommunityToolkit.Mvvm or plain
+`INotifyPropertyChanged`, the Jinaga half is the same: watch, marshal to the
+UI thread, stop on dispose.
 
 ## Populate a collection from a watch
 
@@ -56,6 +59,38 @@ choice; the parens matter. Expose the view model's own `Loaded()` as an
 awaits *that*, not the observer directly, so a view model with more than
 one observer can compose them (`Task.WhenAll(...)`) behind one call.
 
+`IObserver.Cached` completes once results have been read from local
+storage, before the replicator answers. Await it to show what the device
+already has while offline; `Loaded` follows with the up-to-date view.
+
+## Changes inside a row
+
+The watch calls back once per row. A collection projected as
+`IEnumerable<T>` holds what existed when the row was added, and does not
+change afterward: a comment added to a task already on screen won't appear.
+For a row whose contents change while it is displayed, project the
+collection as `IObservableCollection<T>` (wrapped in `facts.Observable(...)`,
+per `authoring-jinaga-specifications-dotnet`) and subscribe to it when the
+row arrives:
+
+```csharp
+_observer = j.Watch(TaskCardsInProject(), project, card =>
+{
+    var row = new TaskRow(card.task);
+    _rows.Add(row);
+    card.comments.OnAdded(comment =>
+    {
+        row.Comments.Add(comment);
+        return () => row.Comments.Remove(comment);
+    });
+    return () => _rows.Remove(row);
+});
+```
+
+The same applies to a row's status when status is the existence of decision
+facts (a completion, a departure): project those decisions as observable
+collections, and the row updates when one arrives.
+
 Expose derived values as computed properties rather than maintaining them by
 hand. A single derived value is a plain computed property reading `_tasks`;
 a derived *collection* — filtered, sorted, or reshaped from `_tasks` — is
@@ -83,7 +118,16 @@ This is the Jinaga-specific half: the source it's computing over is data
 `j.Watch()` callbacks can fire on a background thread. Anything that touches
 UI-bound state — including an `ObservableList` a XAML binding is watching —
 needs to run on the UI thread; dispatch explicitly rather than assuming the
-callback already runs there.
+callback already runs there. In .NET MAUI, dispatch both the add and the
+remove:
+
+```csharp
+_observer = j.Watch(TasksInProjectQuery(), project, projection =>
+{
+    MainThread.BeginInvokeOnMainThread(() => _tasks.Add(projection));
+    return () => MainThread.BeginInvokeOnMainThread(() => _tasks.Remove(projection));
+});
+```
 
 Always implement `IDisposable` and stop the observer in it. A view model
 that never stops its watch keeps its subscription (and everything it holds
@@ -100,18 +144,10 @@ this stage than after it's live in a screen. Two ways to do the "sketch
 and confirm" part, combinable:
 
 - **Diagram it** — draw the fact-type graph and a sample instance graph by
-  hand, per `diagramming-historical-models`'s notation. (Polyglot Notebooks
-  used to make this interactive via the `Jinaga.Notebooks` package's
-  `Renderer`/`AsTable` helpers — that package's notebook-facing API is
-  built on notebook-kernel display types and is dead weight without a
-  notebook host, since Polyglot Notebooks is no longer supported. Its
-  `Jinaga.Notebooks.Dot` namespace is a separate, plain-string API that
-  still works standalone, though: `Dot.Renderer.RenderTypes(typeof(...))`
-  and `j.RenderFacts(...)` (via `Dot.JinagaClientExtensions`) generate the
-  same Graphviz notation from real fact types or fact instances, callable
-  from a throwaway console app or test and piped through `dot -Tsvg` —
-  useful if hand-drawing a graph with many fact types gets tedious, though
-  hand-drawing is the default and needs nothing beyond the notation.)
+  hand, per `diagramming-historical-models`'s notation. For a model with
+  many fact types, `Jinaga.Notebooks.Dot` generates the same notation from
+  code: `Dot.Renderer.RenderTypes(typeof(...))` for fact types and
+  `j.RenderFacts(...)` for instances, piped through `dot -Tsvg`.
 - **Prove it with a test** — write a scratch `JinagaTest`-based test (per
   `testing-jinaga-dotnet`) that saves a couple of example facts and queries
   them back through the specification. This is the same "does the shape

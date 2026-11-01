@@ -12,6 +12,12 @@ Specifications are declarative queries over the fact graph, built with
 `model.given(T).match(...)` and run with `j.query()` (one-shot) or
 `j.watch()`/`j.subscribe()` (live).
 
+Design the specification in Factual first
+(`authoring-factual-specifications`): its rules, such as declaring a fact
+before projecting it and never comparing field values, are what this
+TypeScript must express. `describeSpecification(spec.specification, 0)` prints
+the Factual a TypeScript specification produces.
+
 ## Basic shape
 
 ```typescript
@@ -62,12 +68,14 @@ in `authoring-jinaga-facts-typescript` uses `.successors()` for the common
 case; reach for `facts.ofType(...).join(...)` when a query needs to compose
 multiple independent walks like this one does.
 
-## Predecessors must be reached through `.predecessor()`, never projected directly
+## Declare a predecessor with `.predecessor()` before using it
 
-Projecting a predecessor field straight off a label — `task.project` inside
-a `.select(...)` or as a bare match result — throws at the point the
-specification is built, not later at query time. Reach the predecessor
-explicitly first:
+A specification projects only facts it has declared as labels
+(`authoring-factual-specifications` explains why this is by design).
+`.predecessor()` is how TypeScript declares one: it walks to the predecessor
+and labels it. Projecting `task.project` straight off a label, inside a
+`.select(...)` or as a bare match result, is refused when the specification
+is built:
 
 ```typescript
 export const projectOf = model.given(Task).match(task =>

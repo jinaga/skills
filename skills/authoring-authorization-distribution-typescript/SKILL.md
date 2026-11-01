@@ -10,7 +10,10 @@ description: >
 
 Two separate, independently-enforced concerns: **authorization** decides
 who may *create* a fact; **distribution** decides who may *read* it back.
-A model can get one right and the other wrong — always check both.
+A model can get one right and the other wrong — always check both. Design
+each rule as a Factual specification first
+(`authoring-factual-specifications`), including the constraints every rule
+must meet, then write it here.
 
 ## Authorization: deny by default, including for `User` itself
 
@@ -50,32 +53,39 @@ export const distribution = (d: DistributionRules) => d
 
 `.share(specification)` names what's being shared; `.with(userSpecification)`
 names who it's shared with, as its own specification reaching from the same
-given down to a `User`. Omitting `.predecessor()` in that user
-specification is a documented, easy-to-hit mistake — the share silently
-fails to authorize anyone at runtime rather than failing to compile.
-`.withEveryone()` skips the user check entirely, for public reads.
+given down to a `User`. The user is reached with `.predecessor()`, which
+declares it as a label: a specification projects only declared labels
+(`authoring-factual-specifications`), so `p => p.creator` is refused when
+the specification is built. `.withEveryone()` skips the user check entirely,
+for public reads. Share the specifications the application runs, so each
+screen's query is covered by the rule written for it.
 
-## A rejected write throws; a rejected read is quieter
+## A rejected write throws; a rejected read depends on why
 
-`j.fact(...)` on an unauthorized fact rejects the promise — straightforward
-to test (see `testing-jinaga-typescript`). A distribution denial on
-`j.query()` also rejects, but a **live** `j.watch()`/`useSpecification` read
-doesn't fail the same way — Jinaga is offline-first, so a local-store read
-can appear to succeed with nothing in it, indistinguishable at a glance
-from "there's just no data yet." `integrating-jinaga-react` covers the
-current, more precise signal for this (`distributionPending`/
-`distributionDiagnostic`); the takeaway here is: **write a `j.query()` test
-that asserts the rejection directly** rather than trying to prove
-distribution correctness through a reactive hook.
+`j.fact(...)` on an unauthorized fact rejects the promise. A read can be
+refused for two kinds of reason:
 
-## Keep the replicator's policy file in sync
+- **Structural**: no rule shares the specification (`no-matching-rule`), or
+  it is narrower than the rule that would (`spec-more-restrictive-than-rule`).
+  This never fixes itself, so `j.query()` rejects with
+  `DistributionDeniedError`. Fix the specification or add the share.
+- **Who the user is**: the rule doesn't name this user
+  (`principal-excluded`), or nobody is logged in (`not-authenticated`). A
+  later fact can change that, so the read resolves with no results.
+  `j.queryWithDiagnostics()` returns the decision alongside the results, and
+  `useSpecification` shows it as the empty state
+  (`integrating-jinaga-react`).
 
-A production Jinaga deployment's replicator enforces authorization and
-distribution from a generated policy artifact, not by re-evaluating the
-TypeScript rules at request time. Adding a fact type, or changing an
-`authorization`/`distribution` rule, means regenerating and committing that
-policy file as part of the same change — otherwise the real replicator
-rejects (or, just as risky, wrongly permits) requests the local, optimistic
-write path made look like they'd succeeded. Check the project's own build
-scripts for the exact regeneration command; treat a stale committed policy
-file as a shipped bug, not a formality.
+`testing-jinaga-typescript` shows how to assert each.
+
+## Deploy the rules the code defines
+
+A replicator enforces authorization, distribution, and purge rules from a
+policy file in Factual, not by running the TypeScript. Generate that file
+from the same `authorization` and `distribution` functions with the `jinaga`
+package's `describeAuthorizationRules` and `describeDistributionRules`, as
+part of the build or deploy, and mount it where the replicator reads
+policies. A rule that can never pass, such as one
+that seeks successors of the fact it authorizes, is refused when the policy
+file is loaded, so a bad rule stops the deploy instead of refusing every
+write.
